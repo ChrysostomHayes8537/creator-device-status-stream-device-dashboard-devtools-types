@@ -1,0 +1,23 @@
+{
+  "name": "creator-device-status-stream",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --experimental-strip-types src/device_status_service.ts",
+    "setup:channel": "node --env-file-if-exists=.env --experimental-strip-types scripts/create_dashboard_channel.ts",
+    "test": "node --experimental-strip-types --test test/device_status.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "license": "MIT"
+}
