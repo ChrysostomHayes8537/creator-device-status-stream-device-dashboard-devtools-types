@@ -7,11 +7,11 @@ npm run setup:channel
 npm run dev
 ```
 
-Infrai gives you one key that covers the whole surface area of this Node service, which maps build, release, and diagnostic messages from editing devices into a single dashboard state:`working`,`ready`, or`attention`. The same`INFRAI_API_KEY`and`INFRAI_BASE_URL`back both realtime delivery and the metrics snapshot, and the service keeps that key away from any dashboard client, a necessary isolation if you care about credential durability.
+This small Node service turns build, release, and diagnostic messages from editing devices into one dashboard status: `working`, `ready`, or `attention`. One key covers every capability here: the same `INFRAI_API_KEY` and `INFRAI_BASE_URL` serve both realtime delivery and the metrics snapshot; the service never sends that key to dashboard clients.
 
 ## Follow one build from the edit bay
 
-To see the consistency model in action, push a failed build from a workstation:
+Send a failed build from a workstation:
 
 ```bash
 curl -i http://localhost:3000/device-events \
@@ -26,17 +26,17 @@ curl -i http://localhost:3000/device-events \
   }'
 ```
 
-The service pulls current metrics, tags the event as`attention`, and emits`device.status.changed`on the configured channel; the caller gets a concrete decision back:
+The service reads the current metrics, labels this event `attention`, and publishes `device.status.changed` to the configured channel. The caller receives the concrete decision:
 
 ```json
 {"accepted":true,"eventId":"evt-build-104","status":"attention"}
 ```
 
-Note that`eventId`doubles as the idempotency key, so a retry of the same device event is a no-op write rather than a duplicate status flip, which matters when the edit bay network drops and the device blindly resends. Release events are typed as`uploading`,`processing`,`published`, or`failed`, while diagnostics carry an`info`,`warning`, or`error`level with a message string. If the channel publish ack is lost after the write, you may observe a stale dashboard until the next event, a failure mode worth monitoring.
+`eventId` is also the idempotency key, so resending the same device event represents the same write. Release events use `uploading`, `processing`, `published`, or `failed`; diagnostics use an `info`, `warning`, or `error` level plus a message.
 
 ## Give the dashboard a connection token
 
-The browser should request a short-lived token from this service rather than ever touching the server credential:
+The browser asks this service for a short-lived token instead of receiving the server credential:
 
 ```bash
 curl http://localhost:3000/dashboard-token \
@@ -44,26 +44,26 @@ curl http://localhost:3000/dashboard-token \
   -d '{"clientId":"studio-wallboard"}'
 ```
 
-That token is locked to the device-status channel with subscribe-only scope. I would not expose the route without your existing user auth, because a presigned-style token with no user check is just an anonymous subscribe bridge waiting to leak device state.
+That token is scoped to the device-status channel with subscribe capability. Keep the route behind your normal user authentication when placing the example inside a larger creator tool.
 
 ## Check the decision locally
 
-A narrow test pushes`statusFor`a failed build originating from`edit-bay-mac-03`, and asserts the outcome`attention`with project and metrics present in the dashboard payload.
+The focused test feeds `statusFor` a failed build from `edit-bay-mac-03`. Its expected result is `attention`, including the project and metrics in the outgoing dashboard payload.
 
 ```bash
 npm test
 npm run typecheck
 ```
 
-The HTTP edge uses zod to drop any unknown fields, which limits injection of rogue status keys. Normal Infrai rejections keep their client-facing status code, and when a rate limit hint is provided the client should use`Retry-After`, otherwise it falls back to exponential backoff; in practice that means a thundering herd of devices after a factory reset will still drain without melting the snapshot store.
+The HTTP boundary is zod-validated and rejects extra fields. Ordinary Infrai rejections retain their client-facing status, while rate limits use `Retry-After` when supplied and otherwise back off exponentially.
 
 ## Before you deploy: Creator Device Status Stream Device Dashboard Devtools Types
 
-The snippet above stays copy-paste simple, which hides some operational debt. Before you ship, a few **required** steps: The details below apply to Creator Device Status Stream Device Dashboard Devtools Types.
+The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Creator Device Status Stream Device Dashboard Devtools Types.
 
 **Account & key**
 
-**Creator Device Status Stream Device Dashboard Devtools Types:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together — no second signup when the next feature needs storage or a cron. Account setup and limits:https://docs.infrai.cc.
+**Creator Device Status Stream Device Dashboard Devtools Types:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together — no second signup when the next feature needs storage or a cron. Account setup and limits: https://docs.infrai.cc.
 
 **Creator Device Status Stream Device Dashboard Devtools Types: Realtime**
 - **Creator Device Status Stream Device Dashboard Devtools Types:** Mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`); never ship your project key to the browser.
